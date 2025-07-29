@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
+import MatchScreen from "./pages/MatchScreen";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,10 +25,26 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/registro" 
               element={
                 <ProtectedRoute>
                   <Register />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/matches" 
+              element={
+                <ProtectedRoute>
+                  <MatchScreen />
                 </ProtectedRoute>
               } 
             />

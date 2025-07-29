@@ -26,9 +26,9 @@ const Auth = () => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Redirect to registration after successful auth
+          // Redirect to dashboard after successful auth
           setTimeout(() => {
-            navigate("/registro");
+            navigate("/dashboard");
           }, 0);
         }
       }
@@ -40,7 +40,7 @@ const Auth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        navigate("/registro");
+        navigate("/dashboard");
       }
     });
 

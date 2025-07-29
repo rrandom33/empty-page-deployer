@@ -109,7 +109,7 @@ const Register = () => {
         description: "Tu perfil ha sido creado exitosamente"
       });
 
-      navigate("/");
+      navigate("/matches");
     } catch (error) {
       toast({
         title: "Error",
