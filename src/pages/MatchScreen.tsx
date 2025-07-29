@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Clock, Users, Calendar } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import ActiveMatchCard from "@/components/ActiveMatchCard";
 
 interface UserProfile {
   id: string;
@@ -295,47 +296,21 @@ const MatchScreen = () => {
           </Card>
         )}
 
-        {/* Resultado del match */}
+        {/* Match activo */}
         {!isLoading && canSearchForMatch && currentMatch && (
-          <Card>
-            <CardHeader className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Heart className="h-6 w-6 text-red-500" />
-                <CardTitle className="text-xl">¡Tienes un nuevo match!</CardTitle>
-                <Heart className="h-6 w-6 text-red-500" />
-              </div>
-              <CardDescription>
-                Hemos encontrado a alguien compatible contigo
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-purple-600">{currentMatch.name}</h3>
-                <p className="text-gray-600">{currentMatch.age} años</p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Badge variant="secondary">{currentMatch.gender}</Badge>
-                <Badge variant="secondary">{currentMatch.orientation}</Badge>
-                <Badge variant="secondary">Busca: {currentMatch.lookingFor}</Badge>
-              </div>
-
-              <div className="text-center space-y-2">
-                <p className="text-sm text-gray-600">
-                  Rango de edad que busca: {currentMatch.minAge} - {currentMatch.maxAge} años
-                </p>
-              </div>
-
-              <div className="flex gap-2 justify-center">
-                <Button variant="outline" className="flex-1">
-                  Pasar
-                </Button>
-                <Button className="flex-1 bg-purple-600 hover:bg-purple-700">
-                  Me gusta ❤️
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ActiveMatchCard 
+            match={currentMatch} 
+            onStartChat={() => {
+              // Navegar al chat - por ahora solo log
+              console.log("Iniciar chat con", currentMatch.name);
+            }}
+            onDismiss={() => {
+              setCurrentMatch(null);
+              // Actualizar la fecha del último match para resetear el cooldown
+              const updatedUser = { ...currentUser, lastMatchDate: new Date(Date.now() + (72 * 60 * 60 * 1000)) };
+              setCurrentUser(updatedUser);
+            }}
+          />
         )}
 
         {/* No hay matches compatibles */}

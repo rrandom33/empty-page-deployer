@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
 import MatchScreen from "./pages/MatchScreen";
+import ChatScreen from "./pages/ChatScreen";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -45,6 +46,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MatchScreen />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/chat/:matchId" 
+              element={
+                <ProtectedRoute>
+                  <ChatScreen />
                 </ProtectedRoute>
               } 
             />
