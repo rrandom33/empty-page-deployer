@@ -22,6 +22,7 @@ export type Database = {
           gender: Database["public"]["Enums"]["gender_type"]
           gender_preferences: Database["public"]["Enums"]["gender_type"][]
           id: string
+          image_urls: string[] | null
           looking_for: Database["public"]["Enums"]["looking_for_type"]
           max_age_preference: number
           min_age_preference: number
@@ -37,6 +38,7 @@ export type Database = {
           gender: Database["public"]["Enums"]["gender_type"]
           gender_preferences?: Database["public"]["Enums"]["gender_type"][]
           id?: string
+          image_urls?: string[] | null
           looking_for: Database["public"]["Enums"]["looking_for_type"]
           max_age_preference: number
           min_age_preference: number
@@ -52,6 +54,7 @@ export type Database = {
           gender?: Database["public"]["Enums"]["gender_type"]
           gender_preferences?: Database["public"]["Enums"]["gender_type"][]
           id?: string
+          image_urls?: string[] | null
           looking_for?: Database["public"]["Enums"]["looking_for_type"]
           max_age_preference?: number
           min_age_preference?: number

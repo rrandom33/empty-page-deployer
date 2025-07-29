@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import ImageUpload from "@/components/ImageUpload";
 
 const genderOptions = [
   { value: "hombre", label: "Hombre" },
@@ -48,11 +49,22 @@ const Register = () => {
     description: "",
     minAgePreference: 18,
     maxAgePreference: 35,
-    genderPreferences: [] as string[]
+    genderPreferences: [] as string[],
+    images: [] as string[]
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (formData.images.length < 3) {
+      toast({
+        title: "Fotos insuficientes",
+        description: "Debes subir al menos 3 fotos para continuar",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -79,7 +91,8 @@ const Register = () => {
           description: formData.description,
           min_age_preference: formData.minAgePreference,
           max_age_preference: formData.maxAgePreference,
-          gender_preferences: formData.genderPreferences as any
+          gender_preferences: formData.genderPreferences as any,
+          image_urls: formData.images
         });
 
       if (error) {
@@ -223,6 +236,14 @@ const Register = () => {
                   />
                 </div>
               </div>
+
+              {/* Fotos de Perfil */}
+              <ImageUpload
+                images={formData.images}
+                onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                maxImages={5}
+                minImages={3}
+              />
 
               {/* Preferencias de Match */}
               <div className="space-y-4">
