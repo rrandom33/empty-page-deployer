@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          age: number
+          created_at: string
+          description: string | null
+          gender: Database["public"]["Enums"]["gender_type"]
+          gender_preferences: Database["public"]["Enums"]["gender_type"][]
+          id: string
+          looking_for: Database["public"]["Enums"]["looking_for_type"]
+          max_age_preference: number
+          min_age_preference: number
+          name: string
+          orientation: Database["public"]["Enums"]["orientation_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age: number
+          created_at?: string
+          description?: string | null
+          gender: Database["public"]["Enums"]["gender_type"]
+          gender_preferences?: Database["public"]["Enums"]["gender_type"][]
+          id?: string
+          looking_for: Database["public"]["Enums"]["looking_for_type"]
+          max_age_preference: number
+          min_age_preference: number
+          name: string
+          orientation: Database["public"]["Enums"]["orientation_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number
+          created_at?: string
+          description?: string | null
+          gender?: Database["public"]["Enums"]["gender_type"]
+          gender_preferences?: Database["public"]["Enums"]["gender_type"][]
+          id?: string
+          looking_for?: Database["public"]["Enums"]["looking_for_type"]
+          max_age_preference?: number
+          min_age_preference?: number
+          name?: string
+          orientation?: Database["public"]["Enums"]["orientation_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +70,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      gender_type: "hombre" | "mujer" | "no_binario" | "otro"
+      looking_for_type: "pareja" | "amistad" | "casual" | "red_social"
+      orientation_type:
+        | "heterosexual"
+        | "homosexual"
+        | "bisexual"
+        | "pansexual"
+        | "asexual"
+        | "otro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +205,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      gender_type: ["hombre", "mujer", "no_binario", "otro"],
+      looking_for_type: ["pareja", "amistad", "casual", "red_social"],
+      orientation_type: [
+        "heterosexual",
+        "homosexual",
+        "bisexual",
+        "pansexual",
+        "asexual",
+        "otro",
+      ],
+    },
   },
 } as const
