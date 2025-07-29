@@ -14,10 +14,10 @@ const Index = () => {
           Encuentra tu conexión perfecta
         </p>
         <Button 
-          onClick={() => navigate("/registro")}
+          onClick={() => navigate("/auth")}
           className="bg-purple-600 hover:bg-purple-700"
         >
-          Crear Perfil
+          Comenzar
         </Button>
       </div>
     </div>

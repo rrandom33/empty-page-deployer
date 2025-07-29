@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUpload from "@/components/ImageUpload";
+import { useAuth } from "@/hooks/useAuth";
 
 const genderOptions = [
   { value: "hombre", label: "Hombre" },
@@ -38,6 +39,7 @@ const lookingForOptions = [
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -68,8 +70,6 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         toast({
           title: "Error",
@@ -138,6 +138,16 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
       <div className="max-w-2xl mx-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Crear tu Perfil</h1>
+          <Button 
+            variant="outline" 
+            onClick={signOut}
+            className="text-sm"
+          >
+            Cerrar Sesión
+          </Button>
+        </div>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold text-primary">
