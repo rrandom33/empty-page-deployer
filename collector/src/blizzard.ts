@@ -174,18 +174,21 @@ export async function resolveHouses(client: BlizzardClient, config: HousesConfig
   const res = await client.get(`/data/wow/ruleset/${config.ruleset}/auctions/`, config.namespaces.dynamic);
   if (res.status !== 200) throw new ApiError(`Índice de casas: respuesta ${res.status}`, res.status);
   const index = parseHouseIndex(res.body);
-  if (config.houses.length > 0) {
-    return config.houses.map((h) => {
-      const found = index.find((x) => x.id === h.id);
-      if (!found) throw new ShapeError(`La casa ${h.id} de config/houses.json ya no está en el índice.`);
-      return { id: h.id, kind: h.kind, name: found.name };
-    });
+  // Por tipo de casa: las configuradas o, si aún no se ha fijado ninguna,
+  // todas las del índice con ese nombre.
+  const houses: HouseRef[] = [];
+  for (const [kind, name] of Object.entries(config.provisional.names) as [HouseKind, string][]) {
+    const fixed = config.houses.filter((h) => h.kind === kind);
+    if (fixed.length > 0) {
+      for (const h of fixed) {
+        const found = index.find((x) => x.id === h.id);
+        if (!found) throw new ShapeError(`La casa ${h.id} de config/houses.json ya no está en el índice.`);
+        houses.push({ id: h.id, kind, name: found.name });
+      }
+    } else {
+      for (const h of index) if (h.name === name) houses.push({ id: h.id, kind, name: h.name });
+    }
   }
-  const kinds = Object.entries(config.provisional.names) as [HouseKind, string][];
-  const houses = index.flatMap((h) => {
-    const kind = kinds.find(([, name]) => name === h.name)?.[0];
-    return kind ? [{ id: h.id, kind, name: h.name }] : [];
-  });
   if (houses.length === 0) throw new ShapeError('El índice no contiene casas de Alianza ni de Blackwater.');
   return houses;
 }

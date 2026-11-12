@@ -7,9 +7,9 @@
     "static": "static-forever-eu",
     "profile": "profile-forever-eu"
   },
-  "houses": [],
+  "houses": [{ "id": 110, "kind": "alliance" }],
   "provisional": {
-    "nota": "Mientras 'houses' esté vacío (verificación 1 pendiente) se recogen todas las casas del índice cuyo nombre coincida con 'names'. Al fijar los IDs, rellenar 'houses' con [{ \"id\": 0, \"kind\": \"alliance\" | \"blackwater\" }].",
+    "nota": "Para cada tipo de casa sin ID fijado en 'houses' se recogen todas las casas del índice con el nombre de 'names'. Alianza quedó fijada en la 110 el 12-11-2026; Blackwater sigue pendiente.",
     "names": {
       "alliance": "Alliance Auction House",
       "blackwater": "Blackwater Auction House"

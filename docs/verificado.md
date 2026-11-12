@@ -8,7 +8,7 @@ Resultados de las verificaciones de la sección 3 de `SPEC.md`, obtenidos con el
 
 | # | Qué | Estado | Resultado |
 |---|---|---|---|
-| 1 | `houseId` de Alianza y de Blackwater del ruleset PvP | **Pendiente** | Acotado a cuatro candidatas por facción; falta comparar con precios del juego. Ver abajo. |
+| 1 | `houseId` de Alianza y de Blackwater del ruleset PvP | **Alianza verificada; Blackwater pendiente** | Alianza = **110**. Blackwater sin comprobar (candidatas 116, 117, 121 y 125). Ver abajo. |
 | 2 | Unidad de los precios | Verificado | Cobre. Cuero ligero a 45, Paño de lino a 26: solo tiene sentido como cobre. Falta el contraste final con un precio del juego (se hará con la verificación 1). |
 | 3 | `Last-Modified` / `If-Modified-Since` | Verificado | La casa y `/commodities` traen `Last-Modified`. Repetir la petición con `If-Modified-Since` devuelve 304. No hay `ETag`. |
 | 4 | Valores de `time_left` | Verificado | `SHORT`, `MEDIUM`, `LONG`, `VERY_LONG`, sin otros. |
@@ -25,6 +25,8 @@ Resultados de las verificaciones de la sección 3 de `SPEC.md`, obtenidos con el
 - Las casas no comparten ningún anuncio entre sí: son mercados distintos.
 
 ### Verificación 1: candidatas
+
+**Alianza = 110.** Captura del juego de Andreu el 12 de noviembre hacia las 14:00 (hora de Madrid): Cuero ligero con 7.355 unidades desde 55c y el grueso entre 66c y 80c. La 110 tenía 7.694 unidades a las 12:25 y 4.274 desde 76c a las 13:25; las otras candidatas tenían 14.503, 1.437 y 2.181. Coincide en volumen y en rango de precio, no al céntimo, porque la captura es posterior a la foto. Confirmado por Andreu.
 
 Por numeración, las casas parecen ir en grupos de Alianza / Horda / Blackwater: 110-113-116, 111-114-117, 112-115-118 (vacío), 119-120-121 y 123-124-125. Cuatro grupos con datos para cuatro rulesets. Es una hipótesis: qué grupo es el PvP solo se sabe comparando con el juego.
 
@@ -43,7 +45,7 @@ Precio mínimo y unidades en la foto de las 11:25 UTC del 12 de noviembre:
 
 ## Supuestos que quedan en el código
 
-- **Casas**: con `houses` vacío en `config/houses.json` se recogen todas las casas de Alianza y Blackwater con anuncios (ocho). Al fijar los dos IDs se rellena `houses` y las demás dejan de guardarse.
+- **Casas**: Alianza está fijada en la 110. De Blackwater se recogen las cuatro candidatas con anuncios hasta fijar su ID en `config/houses.json`.
 - **Foto nueva**: se envía `If-Modified-Since` con el último `Last-Modified` de la primera casa y, por si acaso, se compara una huella de sus anuncios.
 - **`time_left`**: solo `SHORT` se trata de forma especial (un anuncio que desaparece con `SHORT` cuenta como caducado).
 - **Objeto**: los agregados se agrupan por `item.id`; no se distinguen variantes por `bonus_lists` o `modifiers`.

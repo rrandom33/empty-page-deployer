@@ -128,7 +128,7 @@ export async function collect(dataDir: string, now = new Date()): Promise<boolea
     history_days: Math.round(((when.getTime() - Date.parse(firstSnapshot)) / 86_400_000) * 10) / 10,
     snapshots_saved: (prevMeta?.snapshots_saved ?? 0) + 1,
     houses: metaHouses,
-    houses_provisional: config.houses.length === 0,
+    houses_provisional: new Set(config.houses.map((h) => h.kind)).size < 2,
     sources: {
       ...prevMeta?.sources,
       blizzard_auctions: { ok: true, at: now.toISOString() },
