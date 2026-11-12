@@ -1,0 +1,18 @@
+{
+  "region": "eu",
+  "host": "https://eu.api.blizzard.com",
+  "ruleset": 1,
+  "namespaces": {
+    "dynamic": "dynamic-forever-eu",
+    "static": "static-forever-eu",
+    "profile": "profile-forever-eu"
+  },
+  "houses": [{ "id": 110, "kind": "alliance" }],
+  "provisional": {
+    "nota": "Para cada tipo de casa sin ID fijado en 'houses' se recogen todas las casas del índice con el nombre de 'names'. Alianza quedó fijada en la 110 el 12-11-2026; Blackwater sigue pendiente.",
+    "names": {
+      "alliance": "Alliance Auction House",
+      "blackwater": "Blackwater Auction House"
+    }
+  }
+}
