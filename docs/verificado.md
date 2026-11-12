@@ -43,11 +43,32 @@ Precio mínimo y unidades en la foto de las 11:25 UTC del 12 de noviembre:
 | 121 Blackwater | 628 | 44c · 118 | 35c · 107 | 26c · 526 | 1p 50c · 84 | 3p 70c · 29 |
 | 125 Blackwater | 740 | 99c · 19 | 98c · 9 | 24c · 296 | 3p 50c · 120 | 7p 25c · 221 |
 
+## Catálogo: profesiones, recetas y objetos
+
+Sondeado el 12 de noviembre de 2026 en `static-forever-eu`. La API de Blizzard da todo el catálogo, así que **no hace falta ForeverDB** ni el fichero de recetas cargado a mano de la sección 3.2.
+
+- `GET /data/wow/profession/index` → profesiones (Peletería es la 165).
+- `GET /data/wow/profession/{id}` → `skill_tiers`; `GET /data/wow/profession/{id}/skill-tier/{tier}` → `categories[].recipes[]`. El nivel máximo de peletería es hoy 75.
+- `GET /data/wow/recipe/{id}` → `crafted_item`, `reagents[{ reagent, quantity }]` y `crafted_quantity { value }`. **No trae el nivel de habilidad que pide la receta ni cómo se aprende.** `/data/wow/recipe/index` y la búsqueda de recetas devuelven 404.
+- `GET /data/wow/search/item?orderby=id&_pageSize=1000&id=[desde,hasta]` → hasta 1.000 objetos por petición con nombre en todos los idiomas, calidad, clase, subclase, `sell_price` y `purchase_price`. Con esto se descarga el catálogo entero en pocas peticiones, sin el problema de los 404 de `/data/wow/item/{id}`.
+- La Tienda de campaña es el objeto 279978 («Tienda de campamento»).
+- La API no dice qué objetos vende un vendedor: `purchase_price` existe para todos. La lista de materiales de vendedor se mantiene a mano en `config/vendor_items.json`, con IDs de Classic, **por verificar en el juego**.
+
+Consecuencias para la herramienta:
+
+- Qué recetas conoce el personaje solo puede salir del perfil (`CHARACTER_SLUG`, verificación 6). Mientras falte, las recetas conocidas se marcan a mano en Fábrica y se guardan en el navegador.
+- El pie del menú acredita la API de Blizzard en lugar de ForeverDB, porque no se muestran datos de ForeverDB.
+
 ## Supuestos que quedan en el código
 
 - **Casas**: Alianza está fijada en la 110. De Blackwater se recogen las cuatro candidatas con anuncios hasta fijar su ID en `config/houses.json`.
 - **Foto nueva**: se envía `If-Modified-Since` con el último `Last-Modified` de la primera casa y, por si acaso, se compara una huella de sus anuncios.
 - **`time_left`**: solo `SHORT` se trata de forma especial (un anuncio que desaparece con `SHORT` cuenta como caducado).
+- **Fiabilidad Media**: la especificación solo define la Alta. Media = al menos 48 h de datos, `stability` ≤ 0,30 y 5 ventas al día o más (`config/thresholds.json`).
+- **Señal «Vender»**: la especificación no da su fórmula. Se usa la simétrica de «Comprar»: precio actual en el cuartil más caro de los últimos 7 días.
+- **Ganga**: si tras las unidades baratas no queda ningún anuncio más caro que confirme la referencia, no se considera ganga.
+- **Ventas al día**: hacen falta al menos 6 horas con ventas estimadas para dar la cifra.
+- **Blackwater**: la columna de Mercado queda vacía y la comparación de la sección 5.8 no se calcula hasta fijar su casa.
 - **Objeto**: los agregados se agrupan por `item.id`; no se distinguen variantes por `bonus_lists` o `modifiers`.
 - **Hora de la foto**: la de `Last-Modified`, en UTC.
 

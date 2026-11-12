@@ -16,7 +16,7 @@ case "${1:-}" in
       cd "$dir"
       today=$(date -u +%F); yesterday=$(date -u -d '1 day ago' +%F)
       git sparse-checkout set --no-cone \
-        '/meta.json' '/state/' \
+        '/meta.json' '/state/' '/catalog/' \
         "/hourly/$today.json.gz" "/hourly/$yesterday.json.gz" \
         "/daily/${today:0:7}.json.gz" "/daily/${yesterday:0:7}.json.gz"
       git checkout --quiet "$BRANCH"

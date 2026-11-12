@@ -8,6 +8,10 @@ on:
         description: IDs de objeto a comparar con el juego, separados por comas
         required: false
         default: '2318,2934,2589,2319,4234'
+      section:
+        description: "'all' para las verificaciones de subastas, 'catalog' para sondear profesiones y recetas"
+        required: false
+        default: all
   push:
     branches: ['claude/**']
     paths:
@@ -32,4 +36,5 @@ jobs:
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
           CHARACTER_SLUG: ${{ secrets.CHARACTER_SLUG }}
           VERIFY_ITEMS: ${{ inputs.items }}
+          VERIFY_SECTION: ${{ inputs.section || 'catalog' }}
         run: node collector/src/verify.ts
