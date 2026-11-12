@@ -56,6 +56,11 @@ async function main(): Promise<void> {
   for (const id of [1, 2, 3, 15]) {
     try {
       const res = await client.get(`/data/wow/ruleset/${id}/auctions/`, dyn);
+      if (id === 1) {
+        const list = isObj(res.body) && Array.isArray(res.body.auctions) ? res.body.auctions : res.body;
+        say('Forma del índice de casas (ruleset 1), dos primeras entradas:');
+        say('```json\n' + JSON.stringify(Array.isArray(list) ? list.slice(0, 2) : list, null, 1).slice(0, 1500) + '\n```');
+      }
       indexes[id] = res.status === 200
         ? parseHouseIndex(res.body).map((h) => `${h.id}:${h.name}`).join(' | ')
         : `respuesta ${res.status}`;

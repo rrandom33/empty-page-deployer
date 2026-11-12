@@ -78,7 +78,8 @@ export class BlizzardClient {
   ): Promise<ApiResponse> {
     const url = new URL(this.host + path);
     url.searchParams.set('namespace', namespace);
-    if (opts.locale) url.searchParams.set('locale', opts.locale);
+    // Sin locale, la API devuelve los nombres como objeto con todos los idiomas.
+    url.searchParams.set('locale', opts.locale ?? 'en_US');
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.token}`,
       'Accept-Encoding': 'gzip',
@@ -126,10 +127,13 @@ export function parseHouseIndex(body: unknown): { id: number; name: string }[] {
     throw new ShapeError('Índice de casas: se esperaba { auctions: [...] }.');
   }
   return body.auctions.map((h, i) => {
-    if (!isObj(h) || typeof h.id !== 'number' || typeof h.name !== 'string') {
-      throw new ShapeError(`Índice de casas: la entrada ${i} no tiene id numérico y name.`);
+    const name = isObj(h) && isObj(h.name) ? h.name.en_US : isObj(h) ? h.name : undefined;
+    if (!isObj(h) || typeof h.id !== 'number' || typeof name !== 'string') {
+      throw new ShapeError(
+        `Índice de casas: la entrada ${i} no tiene id numérico y name: ${JSON.stringify(h).slice(0, 300)}`,
+      );
     }
-    return { id: h.id, name: h.name };
+    return { id: h.id, name };
   });
 }
 
