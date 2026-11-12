@@ -49,6 +49,11 @@ async function main(): Promise<void> {
   const client = new BlizzardClient(config.host);
   await client.authenticate();
 
+  if (process.env.VERIFY_SECTION === 'catalog') {
+    await probeCatalog(client, config.namespaces.static);
+    return;
+  }
+
   say('\n## Rulesets y casas');
   const rulesets = await client.get('/data/wow/ruleset/index', dyn);
   say('```json\n' + JSON.stringify(rulesets.body, null, 1).slice(0, 3000) + '\n```');
@@ -165,6 +170,42 @@ async function main(): Promise<void> {
       say(`Error: ${(err as Error).message.replaceAll(slug, '<personaje>')}`);
     }
   }
+}
+
+/** Sondeo de los recursos de catálogo: profesiones, recetas y objetos. */
+async function probeCatalog(client: BlizzardClient, ns: string): Promise<void> {
+  const dump = async (title: string, path: string, max = 2500, locale = 'es_ES') => {
+    say(`\n### ${title} — \`${path}\``);
+    try {
+      const res = await client.get(path, ns, { locale });
+      say(`Respuesta ${res.status}`);
+      if (res.body) say('```json\n' + JSON.stringify(res.body, null, 1).slice(0, max) + '\n```');
+      return res.body;
+    } catch (err) {
+      say(`Error: ${(err as Error).message}`);
+      return null;
+    }
+  };
+  say('\n## Catálogo');
+  await dump('Índice de profesiones', '/data/wow/profession/index', 3000);
+  const prof = await dump('Peletería (165)', '/data/wow/profession/165', 2500);
+  const tiers = isObj(prof) && Array.isArray(prof.skill_tiers) ? prof.skill_tiers : [];
+  let recipeId: unknown;
+  for (const tier of tiers.slice(0, 2)) {
+    if (!isObj(tier)) continue;
+    const body = await dump(`Nivel de habilidad ${tier.id}`, `/data/wow/profession/165/skill-tier/${tier.id}`, 6000);
+    if (isObj(body) && Array.isArray(body.categories)) {
+      const cat = body.categories[0];
+      if (isObj(cat) && Array.isArray(cat.recipes) && isObj(cat.recipes[0])) recipeId ??= cat.recipes[0].id;
+    }
+  }
+  if (recipeId !== undefined) await dump('Receta de ejemplo', `/data/wow/recipe/${recipeId}`, 3000);
+  await dump('Índice de recetas', '/data/wow/recipe/index', 1500);
+  await dump('Objeto 2318', '/data/wow/item/2318', 3500);
+  await dump('Búsqueda de objeto: Tent', '/data/wow/search/item?name.en_US=Tent&_pageSize=10', 4000, 'en_US');
+  await dump('Búsqueda de objeto: Light Leather', '/data/wow/search/item?name.en_US=Light%20Leather&_pageSize=5', 2500, 'en_US');
+  await dump('Clases de objeto', '/data/wow/item-class/index', 2500);
+  await dump('Hechizo/receta por búsqueda', '/data/wow/search/recipe?name.en_US=Leather&_pageSize=5', 2500, 'en_US');
 }
 
 main()
