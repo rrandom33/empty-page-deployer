@@ -53,6 +53,7 @@ export async function collect(dataDir: string, now = new Date()): Promise<boolea
     console.log('Sin foto nueva (304).');
     return false;
   }
+  if (probe.listings.length === 0) throw new Error(`Casa ${first.id}: la foto llega vacía.`);
   const hash = snapshotHash(probe.listings);
   if (prevMeta?.snapshot_hash === hash) {
     console.log('Sin foto nueva (misma huella).');
@@ -81,6 +82,11 @@ export async function collect(dataDir: string, now = new Date()): Promise<boolea
   const metaHouses: Meta['houses'] = [];
   for (const house of houses) {
     const { listings, counts } = snapshots.get(house.id)!;
+    if (listings.length === 0) {
+      // Hay casas del índice que existen pero están vacías (112 y 118 a 12-11-2026).
+      console.log(`Casa ${house.id} (${house.kind}): vacía, no se guarda.`);
+      continue;
+    }
     const prevRows = comparable ? prevState!.houses[house.id] : undefined;
     const sold = prevRows ? estimateSales(fromRows(prevRows), listings).sold : null;
     const rows: HourlySnap['houses'][string] = {};

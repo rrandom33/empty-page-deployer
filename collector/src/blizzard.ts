@@ -227,9 +227,6 @@ export async function fetchHouse(
       throw new ApiError(`Casa ${houseId} (materiales): respuesta ${sub.status}`, sub.status);
     }
   }
-  if (res.body.auctions === undefined && commodities.length === 0) {
-    throw new ShapeError(`Casa ${houseId}: no trae anuncios ni materiales.`);
-  }
 
   // Si un mismo anuncio llegara por las dos vías, se cuenta una vez.
   const seen = new Set<number>();
