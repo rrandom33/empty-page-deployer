@@ -52,9 +52,13 @@ export interface RecipeRow {
   yield: number;
   reagents: [number, number][];
   known: boolean | null;
-  /** Nivel de habilidad con el que se aprende; null si no se conoce. */
+  /** Nivel de habilidad que pide; null si no hay datos. */
   skill: number | null;
+  /** false: no se sabe el nivel exacto; `skill` es el nivel en que la receta pasa a amarilla. */
+  skillExact: boolean;
+  /** 'a' automática, 't' instructor, 'i<objeto>' patrón. */
   learn: string | null;
+  isNew: boolean;
   listed: number;
   cost?: number;
   mats?: RecipeMat[];
@@ -76,9 +80,7 @@ export interface Recipes {
   professions: { id: number; name: string }[];
   character: { professions: { id: number; name: string; skill: number | null; max: number | null }[] } | null;
   /** De dónde salen los niveles de receta. */
-  skillSource: 'foreverdb' | 'classic' | null;
-  /** Profesiones con niveles; null = todas. */
-  skillProfessions: number[] | null;
+  skillSource: 'foreverdb' | null;
   names: Record<string, string>;
   recipes: RecipeRow[];
 }

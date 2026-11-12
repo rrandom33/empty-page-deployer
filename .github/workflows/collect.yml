@@ -2,7 +2,8 @@ name: Recolector
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Minutos impares: GitHub retrasa o descarta más los cron en punto y a las medias.
+    - cron: '7,17,27,37,47,57 * * * *'
   workflow_dispatch:
 
 permissions:

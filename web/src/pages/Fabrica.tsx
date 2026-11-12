@@ -42,7 +42,8 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
   const anyKnown = !!data && data.recipes.some(isKnown);
   const goldCopper = gold * 10000;
 
-  const hasLevels = (p: number) => !!data && data.skillSource !== null && (data.skillProfessions === null || data.skillProfessions.includes(p));
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const hasLevels = (_prof: number) => !!data && data.skillSource !== null;
   const rows = useMemo(() => {
     if (!data) return [];
     const profId = professions.some((p) => p.id === prof) ? prof : 'todas';
@@ -129,16 +130,7 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
         </div>
       )}
       {profNumber !== null && myLevel !== null && !levelsHere && (
-        <p className="notice">
-          Todavía no hay datos del nivel que pide cada receta de {profName}, así que no se puede filtrar por tu nivel. Blizzard no publica
-          ese dato; llegará con la clave de ForeverDB.
-        </p>
-      )}
-      {profNumber !== null && myLevel !== null && levelsHere && data.skillSource === 'classic' && (
-        <p className="notice">
-          Los niveles de las recetas son los de Classic y están sin verificar en Forever; solo cubren hasta el nivel 100. Las recetas nuevas
-          de Forever, como la Tienda de campamento, no tienen nivel: márcalas con «Conozco esta receta» o incluye las de nivel desconocido.
-        </p>
+        <p className="notice">Todavía no se han descargado los niveles de las recetas, así que no se puede filtrar por tu nivel.</p>
       )}
       {skill && skill.skill !== null && (
         <p className="muted" style={{ margin: 0 }}>Tu nivel de {skill.name.toLowerCase()}: {skill.skill}{skill.max ? ` de ${skill.max}` : ''}.</p>
@@ -168,7 +160,7 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
                         <button type="button" className="th-sort strong" onClick={() => setSelected(r.id)}>{r.name}</button>
                         <div className="small">{r.reagents.map(([item, qty]) => `${qty} ${names(item)}`).join(' · ')}</div>
                       </td>
-                      <td className="num">{r.skill ?? '—'}</td>
+                      <td className="num">{r.skill === null ? '—' : `${r.skillExact ? '' : '≤'}${r.skill}`}</td>
                       <td className="num">{r.cost === undefined ? 'sin materiales' : price(Math.round(r.cost))}</td>
                       <td className="num">{r.sale == null ? 'sin anuncios' : price(r.sale)}</td>
                       <td className={`num strong ${r.profit == null ? '' : r.profit >= 0 ? 'pos' : 'neg'}`}>{r.profit == null ? '—' : signedPrice(Math.round(r.profit))}</td>
@@ -219,7 +211,9 @@ function Detail({
         <h2 style={{ fontSize: 18, lineHeight: '24px' }}>{r.name}</h2>
         <span className="muted">
           {profName}{r.cat ? ` · ${r.cat}` : ''}{r.yield !== 1 ? ` · salen ${r.yield} por fabricación` : ''}
-          {r.skill !== null ? ` · nivel ${r.skill}` : ''}
+          {r.skill !== null ? ` · ${r.skillExact ? `nivel ${r.skill}` : `nivel ${r.skill} como mucho`}` : ''}
+          {r.learn === 'a' ? ' · se aprende sola' : r.learn === 't' ? ' · la enseña el instructor' : r.learn?.startsWith('i') ? ` · se aprende con ${names(Number(r.learn.slice(1)))}` : ''}
+          {r.isNew ? ' · nueva en Forever' : ''}
           {r.rel !== undefined ? ` · Fiabilidad ${RELIABILITY[r.rel]!.toLowerCase()}` : ''}
         </span>
       </div>
