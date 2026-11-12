@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collect } from './main.ts';
 import { parseListings, ShapeError } from './blizzard.ts';
-import { parseForeverDbRecipes } from './catalog.ts';
+import { parseForeverDbRecipes, parseForeverDbVendors } from './catalog.ts';
 import { readJson } from './store.ts';
 import type { DailyFile, HourlyFile, Meta } from './store.ts';
 
@@ -119,4 +119,17 @@ test('lee los niveles de receta del fichero de ForeverDB', () => {
   assert.equal(rows['279978']!.isNew, true);
   assert.equal(rows['2311']!.orange, 40); // gana la receta que se aprende antes
   assert.equal(rows['2311']!.learn, 'i2407');
+});
+
+test('lee los materiales de vendedor de ForeverDB: sin Horda, sin existencias limitadas, por unidad', () => {
+  const lua = [
+    'ns.npcs = {[1]={"Ana","Suministros",1429,41.7,67,"A",1},[2]={"Bo","Suministros",1637,1,2,"H",1},' +
+      '[3]={"Cid","Suministros",1,1,1,"",0},[4]={"Dan","Raro",1,1,1,"A",1}}',
+    'ns.sold = {[2320]={2,5,1,0,1,10,1,0},[3371]={1,20,5,0},[14341]={4,100,1,1},[2678]={3,8,1,0,2,1,1,0}}',
+  ].join('\n');
+  const v = parseForeverDbVendors(lua);
+  assert.deepEqual(v['2320'], { price: 10, npc: 'Ana', seen: true });
+  assert.equal(v['3371']!.price, 4); // 20c por 5 unidades
+  assert.equal(v['14341'], undefined); // existencias limitadas
+  assert.equal(v['2678']!.price, 8); // solo un vendedor neutral no visto en Forever
 });

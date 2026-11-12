@@ -1,5 +1,7 @@
 name: Recolector
 
+# El cron de GitHub no se ha disparado ni una vez en este repositorio, así que cada
+# ejecución programa la siguiente (trabajo «relanzar»). El cron queda como respaldo.
 on:
   schedule:
     # Minutos impares: GitHub retrasa o descarta más los cron en punto y a las medias.
@@ -11,13 +13,13 @@ permissions:
   issues: write
   actions: write
 
-concurrency:
-  group: collect
-  cancel-in-progress: false
-
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # Que no se solapen dos recogidas ni una recogida con el catálogo.
+    concurrency:
+      group: collect
+      cancel-in-progress: false
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
@@ -58,3 +60,30 @@ jobs:
             gh issue create --title 'El recolector falla' \
               --body "Tres ejecuciones seguidas del recolector han fallado. Última: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           fi
+
+  relaunch:
+    needs: collect
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    # Grupo propio: la espera no bloquea al catálogo, que comparte el grupo «collect».
+    concurrency:
+      group: collect-relaunch
+      cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Esperar a la siguiente foto y relanzar
+        run: |
+          last=$(curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/data/meta.json" \
+            | jq -r '.last_modified // empty' || true)
+          now=$(date -u +%s)
+          wait=300
+          if [ -n "$last" ]; then
+            next=$(( $(date -u -d "$last" +%s) + 3660 ))
+            if [ "$next" -gt "$now" ]; then wait=$(( next - now )); fi
+          fi
+          if [ "$wait" -gt 3900 ]; then wait=3900; fi
+          echo "Siguiente intento en $(( wait / 60 )) min."
+          sleep "$wait"
+          gh workflow run collect.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
