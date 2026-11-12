@@ -1,0 +1,9 @@
+{
+  "copper_per_gold": 10000,
+  "cut": { "alliance": 0.05, "blackwater": 0.15 },
+  "deposit": {
+    "rate_by_hours": { "2": 0.05, "8": 0.2, "24": 0.6 },
+    "min_copper": 1
+  },
+  "por_verificar": ["cut", "deposit.rate_by_hours"]
+}

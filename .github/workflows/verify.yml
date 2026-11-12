@@ -1,0 +1,35 @@
+name: Verificar API
+
+# Verificaciones de la sección 3.1 de SPEC.md. Solo lee de la API.
+on:
+  workflow_dispatch:
+    inputs:
+      items:
+        description: IDs de objeto a comparar con el juego, separados por comas
+        required: false
+        default: '2318,2934,2589,2319,4234'
+  push:
+    branches: ['claude/**']
+    paths:
+      - collector/src/verify.ts
+      - .github/workflows/verify.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verificar
+        env:
+          BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
+          BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
+          CHARACTER_SLUG: ${{ secrets.CHARACTER_SLUG }}
+          VERIFY_ITEMS: ${{ inputs.items }}
+        run: node collector/src/verify.ts

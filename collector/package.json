@@ -1,0 +1,16 @@
+{
+  "name": "wow-subastas-collector",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "collect": "node src/main.ts",
+    "verify": "node src/verify.ts",
+    "test": "node --test \"../engine/*.test.ts\" \"src/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

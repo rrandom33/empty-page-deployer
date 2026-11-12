@@ -1,0 +1,18 @@
+{
+  "region": "eu",
+  "host": "https://eu.api.blizzard.com",
+  "ruleset": 1,
+  "namespaces": {
+    "dynamic": "dynamic-forever-eu",
+    "static": "static-forever-eu",
+    "profile": "profile-forever-eu"
+  },
+  "houses": [],
+  "provisional": {
+    "nota": "Mientras 'houses' esté vacío (verificación 1 pendiente) se recogen todas las casas del índice cuyo nombre coincida con 'names'. Al fijar los IDs, rellenar 'houses' con [{ \"id\": 0, \"kind\": \"alliance\" | \"blackwater\" }].",
+    "names": {
+      "alliance": "Alliance Auction House",
+      "blackwater": "Blackwater Auction House"
+    }
+  }
+}

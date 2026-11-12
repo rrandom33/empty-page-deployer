@@ -1,0 +1,23 @@
+{
+  "market": { "cheapest_share": 0.15, "ladder_break": 1.5 },
+  "depth_steps": [1, 1.05, 1.2, 1.35, 1.5],
+  "sales": { "window_days": 3, "prudence": 0.7 },
+  "reference": { "window_hours": 72, "min_hours_for_signals": 48, "trend_days": 7 },
+  "reliability": { "high": { "min_hours": 72, "max_stability": 0.15, "min_sold_per_day": 20 } },
+  "bargain": {
+    "max_price_vs_ref": 0.6,
+    "next_price_min_vs_ref": 0.85,
+    "min_sold_per_day": 5,
+    "buy_below_vs_ref": 0.7,
+    "max_share_of_daily_sales": 0.25
+  },
+  "recipe": {
+    "max_depth": 3,
+    "max_share_of_daily_sales": 0.25,
+    "max_material_cost_increase": 0.1,
+    "target_margin": 0.4
+  },
+  "buy_timing": { "min_days": 7, "max_drop_per_day": -0.05 },
+  "today": { "max_actions": 5, "min_sold_per_day": 20 },
+  "retention": { "hourly_days": 30 }
+}
