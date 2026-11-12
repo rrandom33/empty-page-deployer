@@ -1,0 +1,12 @@
+{
+  "nota": "Materiales que vende un vendedor a precio fijo. La API de Blizzard no dice qué objetos vende un vendedor, así que la lista se mantiene a mano con los IDs de Classic. El precio sale del catálogo (purchase_price). Por verificar en el juego.",
+  "items": [
+    2320, 2321, 4291, 8343, 14341,
+    4289, 2324, 2325, 2604, 2605, 4340, 4341, 4342, 6260, 6261, 10290,
+    3371, 3372, 8925,
+    2880, 3466, 3857,
+    2678, 2692, 3713,
+    4470, 4399, 4400,
+    159, 1179
+  ]
+}

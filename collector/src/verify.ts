@@ -10,6 +10,7 @@ import { aggregateItem } from '../../engine/aggregate.ts';
 import { formatCopper } from '../../engine/money.ts';
 import type { Listing } from '../../engine/types.ts';
 import { BlizzardClient, loadHousesConfig, parseHouseIndex, parseListings } from './blizzard.ts';
+import { fetchItems, fetchRecipes } from './catalog.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const out: string[] = [];
@@ -172,42 +173,23 @@ async function main(): Promise<void> {
   }
 }
 
-/** Sondeo de los recursos de catálogo: profesiones, recetas y objetos. */
+/** Ensayo del catálogo: descarga objetos y recetas como lo hará catalog.yml, sin guardar nada. */
 async function probeCatalog(client: BlizzardClient, ns: string): Promise<void> {
-  const dump = async (title: string, path: string, max = 2500, locale = 'es_ES') => {
-    say(`\n### ${title} — \`${path}\``);
-    try {
-      const res = await client.get(path, ns, { locale });
-      say(`Respuesta ${res.status}`);
-      if (res.body) say('`' + JSON.stringify(res.body).slice(0, max) + '`');
-      return res.body;
-    } catch (err) {
-      say(`Error: ${(err as Error).message}`);
-      return null;
-    }
-  };
-  say('\n## Catálogo');
-  await dump('Índice de profesiones', '/data/wow/profession/index', 1200);
-  const prof = await dump('Peletería (165)', '/data/wow/profession/165', 1200);
-  const tiers = isObj(prof) && Array.isArray(prof.skill_tiers) ? prof.skill_tiers : [];
-  let recipeId: unknown;
-  for (const tier of tiers.slice(0, 1)) {
-    if (!isObj(tier)) continue;
-    const body = await dump(`Nivel de habilidad ${tier.id}`, `/data/wow/profession/165/skill-tier/${tier.id}`, 1500);
-    if (isObj(body) && Array.isArray(body.categories)) {
-      const cat = body.categories[0];
-      if (isObj(cat) && Array.isArray(cat.recipes) && isObj(cat.recipes[0])) recipeId ??= cat.recipes[0].id;
-    }
-  }
-  if (recipeId !== undefined) await dump('Receta de ejemplo', `/data/wow/recipe/${recipeId}`, 1500);
-  await dump('Índice de recetas', '/data/wow/recipe/index', 600);
-  await dump('Receta 1', '/data/wow/recipe/1', 600);
-  await dump('Objeto 279978', '/data/wow/item/279978', 1500);
-  await dump('Objeto 2318', '/data/wow/item/2318', 1500);
-  await dump('Búsqueda paginada', '/data/wow/search/item?orderby=id&_pageSize=1000&_page=1&id=[2318,2330]', 900, 'en_US');
-  await dump('Búsqueda por clase 7', '/data/wow/search/item?item_class.id=7&orderby=id&_pageSize=1000', 300, 'en_US');
-  await dump('Hechizo 2149', '/data/wow/spell/2149', 600);
-  await dump('Media objeto', '/data/wow/media/item/2318', 500);
+  say('\n## Catálogo (ensayo, no guarda nada)');
+  const started = Date.now();
+  const items = await fetchItems(client, ns);
+  const ids = Object.keys(items);
+  say(`Objetos: ${ids.length} en ${Math.round((Date.now() - started) / 1000)} s; sin nombre: ${ids.filter((id) => !items[id]![0]).length}`);
+  for (const id of [2318, 2320, 279978]) say(`- ${id}: \`${JSON.stringify(items[id] ?? null)}\``);
+  const t = Date.now();
+  const { professions, recipes } = await fetchRecipes(client, ns);
+  say(`Recetas: ${recipes.length} de ${professions.length} profesiones en ${Math.round((Date.now() - t) / 1000)} s`);
+  say(`Profesiones: ${professions.map((p) => `${p.id} ${p.name} (${recipes.filter((r) => r.prof === p.id).length})`).join(', ')}`);
+  const noItem = recipes.filter((r) => !items[r.item]).length;
+  say(`Recetas cuyo objeto no está en el catálogo: ${noItem}`);
+  for (const r of recipes.filter((r) => r.prof === 165).slice(0, 6)) say(`- \`${JSON.stringify(r)}\``);
+  const tent = recipes.filter((r) => r.item === 279978 || r.item === 2318);
+  for (const r of tent) say(`- \`${JSON.stringify(r)}\``);
 }
 
 main()

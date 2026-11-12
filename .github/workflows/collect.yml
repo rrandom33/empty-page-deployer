@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
   issues: write
-  actions: read
+  actions: write
 
 concurrency:
   group: collect
@@ -43,7 +43,9 @@ jobs:
         if: steps.collect.outputs.changed == 'true'
         run: collector/scripts/data-branch.sh push data-branch
 
-      # El despliegue de la web (pages.yml) se lanzará desde aquí en la Fase 2.
+      - name: Publicar la web
+        if: steps.collect.outputs.changed == 'true'
+        run: gh workflow run pages.yml --ref "$GITHUB_REF_NAME"
 
       - name: Abrir un issue tras tres fallos seguidos
         if: failure()

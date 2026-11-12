@@ -1,0 +1,45 @@
+name: Catálogo
+
+# Diario: objetos, recetas, vendedores y profesiones del personaje.
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+# Mismo grupo que el recolector: los dos reescriben la rama data.
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Descargar la rama data
+        run: |
+          collector/scripts/data-branch.sh pull \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data-branch
+      - name: Descargar el catálogo
+        env:
+          BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
+          BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
+          CHARACTER_SLUG: ${{ secrets.CHARACTER_SLUG }}
+          DATA_DIR: data-branch
+        run: node collector/src/catalog.ts
+      - name: Guardar en la rama data
+        if: always()
+        run: |
+          if [ -d data-branch/catalog ]; then collector/scripts/data-branch.sh push data-branch; fi
+      - name: Publicar la web
+        run: gh workflow run pages.yml --ref "$GITHUB_REF_NAME"

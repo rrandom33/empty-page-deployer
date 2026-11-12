@@ -1,0 +1,57 @@
+name: Web
+
+# Calcula los datos derivados y publica la web en GitHub Pages.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['web/**', 'engine/**', 'collector/src/derive.ts', 'config/**', '.github/workflows/pages.yml']
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Descargar la rama data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone --quiet --depth 1 --branch data \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data-branch
+      - name: Calcular los datos derivados
+        env:
+          DATA_DIR: data-branch
+          OUT_DIR: web/public/data
+        run: node collector/src/derive.ts
+      - name: Construir la web
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
