@@ -1,5 +1,5 @@
 import { Spinner } from '@fluentui/react-components';
-import { useHash, useLatest, useNow, useStored } from './data.ts';
+import { useHash, useLatest, useNow, useRecipes, useStored } from './data.ts';
 import type { Latest } from './data.ts';
 import { ago, historyLabel } from './format.ts';
 import { Hoy } from './pages/Hoy.tsx';
@@ -53,12 +53,14 @@ export function App() {
 }
 
 function NavFooter({ latest, now }: { latest: Latest | null; now: number }) {
+  const { data: recipes } = useRecipes();
   return (
     <div className="nav-footer">
       <span>Alianza · PvP · Europa</span>
       {latest && <span>Última foto: {ago(latest.t, now)}</span>}
       {latest && <span>Historial: {historyLabel(latest.hours)}</span>}
       <span>Datos: API de Blizzard</span>
+      {recipes?.skillSource === 'foreverdb' && <a href="https://foreverdb.net" style={{ color: '#C7D3E0' }}>Datos de ForeverDB.net</a>}
     </div>
   );
 }

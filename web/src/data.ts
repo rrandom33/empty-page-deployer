@@ -52,6 +52,9 @@ export interface RecipeRow {
   yield: number;
   reagents: [number, number][];
   known: boolean | null;
+  /** Nivel de habilidad con el que se aprende; null si no se conoce. */
+  skill: number | null;
+  learn: string | null;
   listed: number;
   cost?: number;
   mats?: RecipeMat[];
@@ -72,6 +75,10 @@ export interface Recipes {
   t: string;
   professions: { id: number; name: string }[];
   character: { professions: { id: number; name: string; skill: number | null; max: number | null }[] } | null;
+  /** De dónde salen los niveles de receta. */
+  skillSource: 'foreverdb' | 'classic' | null;
+  /** Profesiones con niveles; null = todas. */
+  skillProfessions: number[] | null;
   names: Record<string, string>;
   recipes: RecipeRow[];
 }
@@ -87,6 +94,8 @@ export interface TodayAction {
   sold: number | null;
   rel: number;
   known: boolean | null;
+  prof?: number;
+  skill?: number | null;
   discount?: number;
   next?: number | null;
   ref?: number;
@@ -219,4 +228,17 @@ export function useNow(intervalMs = 30_000): number {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
+}
+
+/** Nivel de cada profesión, introducido a mano. */
+export function useSkillLevels() {
+  const [levels, setLevels] = useStored<Record<string, number>>('niveles', {});
+  const set = (prof: number, level: number | null) =>
+    setLevels((prev) => {
+      const next = { ...prev };
+      if (level === null) delete next[prof];
+      else next[prof] = level;
+      return next;
+    });
+  return { levels, get: (prof: number | undefined): number | null => (prof === undefined ? null : (levels[prof] ?? null)), set };
 }

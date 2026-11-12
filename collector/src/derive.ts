@@ -9,7 +9,7 @@ import {
 } from '../../engine/analysis.ts';
 import type { Economy, ItemStats, Ladder, Market, Point, Recipe, RecipeResult, Thresholds } from '../../engine/analysis.ts';
 import { median } from '../../engine/aggregate.ts';
-import type { CharacterFile, ItemsFile, RecipeEntry, RecipesFile, VendorsFile } from './catalog.ts';
+import type { CharacterFile, ItemsFile, RecipeEntry, RecipesFile, SkillsFile, VendorsFile } from './catalog.ts';
 import type { HousesConfig } from './blizzard.ts';
 import { readJson, writeJson } from './store.ts';
 import type { HourlyFile, Meta, SnapshotState } from './store.ts';
@@ -107,6 +107,14 @@ export function derive(dataDir: string, outDir: string): void {
   const vendors = readJson<VendorsFile>(join(dataDir, 'catalog/vendors.json'))?.items ?? {};
   const character = readJson<CharacterFile>(join(dataDir, 'catalog/character.json'));
   const known = character ? new Set(character.known) : null;
+  const skills = readJson<SkillsFile>(join(dataDir, 'catalog/skills.json'));
+  // Sin ForeverDB se usan los niveles de Classic cargados a mano (solo peletería, sin verificar).
+  const seed = readJson<{ profession: number; byItem: Record<string, number> }>(join(ROOT, 'config/recipe_skills.seed.json'));
+  const skillOf = (r: RecipeEntry): { orange: number | null; yellow: number | null; grey: number | null; learn: string | null } | null => {
+    if (skills) return skills.byItem[r.item] ?? skills.byName[r.name.toLowerCase()] ?? null;
+    const level = seed && r.prof === seed.profession ? seed.byItem[r.item] : undefined;
+    return level === undefined ? null : { orange: level, yellow: null, grey: null, learn: null };
+  };
 
   const stats = new Map<number, ItemStats>();
   const current = new Map<number, Point>();
@@ -173,6 +181,9 @@ export function derive(dataDir: string, outDir: string): void {
     return {
       id: r.id, name: r.name, prof: r.prof, cat: r.cat, item: r.item, yield: r.yield, reagents: r.reagents,
       known: known ? known.has(r.id) : null,
+      skill: skillOf(r)?.orange ?? skillOf(r)?.yellow ?? null,
+      grey: skillOf(r)?.grey ?? null,
+      learn: skillOf(r)?.learn ?? null,
       listed: market.listed(r.item),
       ...(res && {
         cost: round(res.cost, 1),
@@ -238,7 +249,8 @@ export function derive(dataDir: string, outDir: string): void {
     actions.push({
       type: 'fabricar', item: r.item, recipe: r.id, name: r.name, unitInvest: round(res.cost, 1),
       unitProfit: round(res.profitPerUnit, 1), maxUnits: res.units, sold: round(res.soldPerDay, 1),
-      rel: REL[res.reliability], known: known ? known.has(r.id) : null, sale: res.sale,
+      rel: REL[res.reliability], known: known ? known.has(r.id) : null, sale: res.sale, prof: r.prof,
+      skill: skillOf(r)?.orange ?? skillOf(r)?.yellow ?? null,
       main: res.buyBelow && { item: res.buyBelow.item, price: round(res.buyBelow.price), qty: r.reagents.find(([i]) => i === res.buyBelow!.item)?.[1] },
     });
     // Compra de material en su franja barata, para las recetas rentables.
@@ -253,7 +265,8 @@ export function derive(dataDir: string, outDir: string): void {
       actions.push({
         type: 'material', item: m.item, recipe: r.id, name: r.name, unitInvest: round(total / units, 1),
         unitProfit: round(ms.ref - total / units, 1), maxUnits: units, sold: round(ms.soldPerDay ?? res.soldPerDay, 1),
-        rel: REL[ms.reliability], known: known ? known.has(r.id) : null, ref: round(ms.ref),
+        rel: REL[ms.reliability], known: known ? known.has(r.id) : null, ref: round(ms.ref), prof: r.prof,
+        skill: skillOf(r)?.orange ?? skillOf(r)?.yellow ?? null,
       });
     }
   }
@@ -298,6 +311,8 @@ export function derive(dataDir: string, outDir: string): void {
     t: header.t,
     professions: recipesFile?.professions ?? [],
     character: character ? { professions: character.professions } : null,
+    skillSource: skills ? 'foreverdb' : seed ? 'classic' : null,
+    skillProfessions: skills ? null : seed ? [seed.profession] : [],
     names,
     recipes: recipesOut,
   });

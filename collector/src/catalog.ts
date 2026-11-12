@@ -147,6 +147,71 @@ export async function fetchCharacter(client: BlizzardClient, ns: string, slug: s
   return { professions, known: [...known].sort((a, b) => a - b) };
 }
 
+export interface SkillRow { orange: number | null; yellow: number | null; green: number | null; grey: number | null; learn: string | null }
+export interface SkillsFile { version: 1; t: string; byItem: Record<string, SkillRow>; byName: Record<string, SkillRow> }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Nivel de habilidad de cada receta, de ForeverDB (la API de Blizzard no lo da).
+ * La forma exacta de la respuesta no está verificada: se leen los campos de forma
+ * tolerante y se imprime una receta de ejemplo para poder ajustarlo.
+ */
+export async function fetchSkills(key: string): Promise<Omit<SkillsFile, 'version' | 't'>> {
+  const base = process.env.FOREVERDB_API_URL ?? 'https://foreverdb.net/api/v1';
+  const pause = Number(process.env.FOREVERDB_PAUSE_MS ?? 2200); // 30 peticiones por minuto en el plan gratuito
+  const get = async (path: string): Promise<Record<string, unknown>> => {
+    for (let attempt = 1; ; attempt++) {
+      const res = await fetch(base + path, { headers: { 'X-API-Key': key, 'User-Agent': 'wow-subastas (herramienta personal)' } });
+      if (res.status === 429 && attempt <= 3) {
+        await sleep((Number(res.headers.get('retry-after')) || 30) * 1000);
+        continue;
+      }
+      if (!res.ok) throw new Error(`ForeverDB ${path.split('?')[0]}: respuesta ${res.status}.`);
+      await sleep(pause);
+      return (await res.json()) as Record<string, unknown>;
+    }
+  };
+  const num = (v: unknown) => (typeof v === 'number' ? v : null);
+  const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : isObj(v) && Array.isArray(v.items) ? v.items : []);
+  const index = await get('/professions');
+  const slugs = list(isObj(index.data) && !Array.isArray(index.data) ? (index.data.professions ?? index.data) : index.data)
+    .map((p) => (isObj(p) && typeof p.slug === 'string' ? p.slug : null))
+    .filter((s): s is string => s !== null);
+  if (slugs.length === 0) throw new ShapeError('ForeverDB: no se reconoce la lista de profesiones.');
+
+  const byItem: Record<string, SkillRow> = {};
+  const byName: Record<string, SkillRow> = {};
+  let sampled = false;
+  for (const slug of slugs) {
+    for (let offset = 0; offset < 5000; offset += 100) {
+      const page = await get(`/professions/${slug}?limit=100&offset=${offset}`);
+      const data = isObj(page.data) ? page.data : {};
+      const recipes = list(data.recipes);
+      if (!sampled && recipes[0]) {
+        sampled = true;
+        console.log(`ForeverDB, receta de ejemplo: ${JSON.stringify(recipes[0]).slice(0, 1500)}`);
+      }
+      for (const r of recipes) {
+        if (!isObj(r)) continue;
+        const skill = isObj(r.skill) ? r.skill : {};
+        const makes = [r.creates, r.makes, r.item, r.result, r.crafts].find(isObj) ?? {};
+        const itemId = num(makes.id) ?? num(makes.itemId) ?? num(r.itemId) ?? num(r.createsItemId);
+        const learned = isObj(r.learnedFrom) ? r.learnedFrom : {};
+        const row: SkillRow = {
+          orange: num(skill.orange), yellow: num(skill.yellow), green: num(skill.green), grey: num(skill.grey ?? skill.gray),
+          learn: typeof learned.type === 'string' ? learned.type : typeof learned.summary === 'string' ? learned.summary : null,
+        };
+        if (row.orange === null && row.yellow === null) continue;
+        if (itemId !== null) byItem[itemId] = row;
+        if (typeof r.name === 'string') byName[r.name.toLowerCase()] = row;
+      }
+      if (recipes.length < 100) break;
+    }
+  }
+  return { byItem, byName };
+}
+
 async function main(): Promise<void> {
   const dataDir = resolve(process.env.DATA_DIR ?? 'data-branch');
   const config = loadHousesConfig(join(ROOT, 'config/houses.json'));
@@ -187,6 +252,18 @@ async function main(): Promise<void> {
     writeJson(join(dataDir, 'catalog/recipes.json'), { version: 1, t, professions, recipes } satisfies RecipesFile);
     return `${recipes.length} recetas de ${professions.length} profesiones`;
   });
+  const fdbKey = process.env.FOREVERDB_API_KEY;
+  if (fdbKey) {
+    await run('foreverdb_niveles', async () => {
+      const skills = await fetchSkills(fdbKey);
+      const count = Object.keys(skills.byItem).length + Object.keys(skills.byName).length;
+      if (count === 0) throw new ShapeError('ForeverDB: ninguna receta con nivel de habilidad reconocible.');
+      writeJson(join(dataDir, 'catalog/skills.json'), { version: 1, t, ...skills } satisfies SkillsFile);
+      return `${Object.keys(skills.byItem).length} recetas con nivel por objeto, ${Object.keys(skills.byName).length} por nombre`;
+    });
+  } else {
+    sources.foreverdb_niveles = { ok: false, at: t, detail: 'Falta el secreto FOREVERDB_API_KEY.' };
+  }
   const slug = process.env.CHARACTER_SLUG;
   if (slug) {
     await run('personaje', async () => {

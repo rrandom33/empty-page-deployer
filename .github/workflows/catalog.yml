@@ -35,6 +35,7 @@ jobs:
           BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
           BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
           CHARACTER_SLUG: ${{ secrets.CHARACTER_SLUG }}
+          FOREVERDB_API_KEY: ${{ secrets.FOREVERDB_API_KEY }}
           DATA_DIR: data-branch
         run: node collector/src/catalog.ts
       - name: Guardar en la rama data

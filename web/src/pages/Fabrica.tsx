@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Spinner } from '@fluentui/react-components';
-import { useKnownRecipes, useRecipes, useStored, useWatchlist } from '../data.ts';
+import { useKnownRecipes, useRecipes, useSkillLevels, useStored, useWatchlist } from '../data.ts';
 import type { Latest, RecipeRow, Recipes } from '../data.ts';
 import { MissingData, SortHeader } from '../components/common.tsx';
 import { approx, int, itemName, percent, price, RELIABILITY, signedPrice } from '../format.ts';
 
-type SortKey = 'name' | 'cost' | 'sale' | 'profit' | 'margin' | 'sold' | 'gpd';
+type SortKey = 'name' | 'skill' | 'cost' | 'sale' | 'profit' | 'margin' | 'sold' | 'gpd';
 const ROUTE_LABEL = { subasta: 'comprado en subasta', vendedor: 'comprado al vendedor', fabricar: 'fabricado' } as const;
 const LEATHERWORKING = 165;
 
@@ -23,6 +23,8 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
   const [prof, setProf] = useStored<number | 'todas'>('fabrica.profesion', LEATHERWORKING);
   const [onlyKnown, setOnlyKnown] = useStored('fabrica.soloConocidas', true);
   const [learn, setLearn] = useState(false);
+  const skills = useSkillLevels();
+  const [unknownLevel, setUnknownLevel] = useStored('fabrica.sinNivel', false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'gpd', dir: -1 });
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -40,12 +42,20 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
   const anyKnown = !!data && data.recipes.some(isKnown);
   const goldCopper = gold * 10000;
 
+  const hasLevels = (p: number) => !!data && data.skillSource !== null && (data.skillProfessions === null || data.skillProfessions.includes(p));
   const rows = useMemo(() => {
     if (!data) return [];
     const profId = professions.some((p) => p.id === prof) ? prof : 'todas';
     const list = data.recipes.filter((r) => {
       if (profId !== 'todas' && r.prof !== profId) return false;
       if (learn) return !isKnown(r);
+      // Con tu nivel puesto: las recetas que ese nivel permite, más las marcadas como conocidas.
+      const level = skills.get(r.prof);
+      if (level !== null && hasLevels(r.prof)) {
+        if (isKnown(r)) return true;
+        if (onlyKnown && anyKnown) return false;
+        return r.skill === null ? unknownLevel : r.skill <= level;
+      }
       if (onlyKnown && anyKnown) return isKnown(r);
       return true;
     });
@@ -59,7 +69,7 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
       return ((va as number) - (vb as number)) * sort.dir;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, prof, professions, learn, onlyKnown, anyKnown, sort, goldCopper, manual.list]);
+  }, [data, prof, professions, learn, onlyKnown, anyKnown, sort, goldCopper, manual.list, skills.levels, unknownLevel]);
 
   if (error) return <p className="notice" role="alert">{error}</p>;
   if (!data) return <Spinner label="Cargando recetas" />;
@@ -67,6 +77,12 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
   const onSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === 'name' ? 1 : -1 }));
   const current = data.recipes.find((r) => r.id === (selected ?? recipeId)) ?? rows[0] ?? null;
   const skill = data.character?.professions.find((p) => p.id === prof);
+  const profNumber = typeof prof === 'number' && professions.some((p) => p.id === prof) ? prof : null;
+  const profName = professions.find((p) => p.id === profNumber)?.name.toLowerCase();
+  const myLevel = skills.get(profNumber ?? undefined);
+  const levelsHere = profNumber !== null && hasLevels(profNumber);
+  const hidden = profNumber !== null && myLevel !== null && levelsHere
+    ? data.recipes.filter((r) => r.prof === profNumber && r.skill === null && !isKnown(r)).length : 0;
 
   return (
     <>
@@ -81,20 +97,49 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
         </label>
       </header>
       {data.recipes.length === 0 && <p className="notice">El catálogo de recetas todavía no se ha descargado. Se actualiza una vez al día.</p>}
-      {data.recipes.length > 0 && !data.character && !anyKnown && (
+      {data.recipes.length > 0 && !data.character && !anyKnown && profNumber !== null && myLevel === null && (
         <p className="notice">
-          No hay datos de tu personaje, así que se muestran todas las recetas. Marca «Conozco esta receta» en el detalle de las tuyas
-          para que Fábrica y Hoy solo cuenten con ellas.
+          Se muestran todas las recetas. Pon tu nivel de {profName ?? 'la profesión'} para ver solo las que puedes hacer, o marca
+          «Conozco esta receta» en el detalle de las tuyas.
         </p>
       )}
       <MissingData hours={latest.hours} needed={6} what="estimar las ventas al día y el oro al día" />
       <div role="group" aria-label="Profesión" className="wrap">
-        {professions.map((p) => (
+        {professions.filter((p) => !/^\d+$/.test(p.name)).map((p) => (
           <button key={p.id} type="button" className="chip" aria-pressed={prof === p.id} onClick={() => { setProf(p.id); setSelected(null); }}>{p.name}</button>
         ))}
         <button type="button" className="chip" aria-pressed={prof === 'todas'} onClick={() => { setProf('todas'); setSelected(null); }}>Todas las profesiones</button>
         <button type="button" className="chip" aria-pressed={learn} onClick={() => { setLearn(!learn); setSelected(null); }}>Recetas que podría aprender</button>
       </div>
+      {profNumber !== null && (
+        <div className="wrap" style={{ gap: '8px 20px' }}>
+          <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ink)' }}>
+            Mi nivel de {profName}
+            <input
+              type="number" min={1} max={450} inputMode="numeric" placeholder="—" value={myLevel ?? ''} style={{ width: 96 }}
+              onChange={(e) => skills.set(profNumber, e.target.value === '' ? null : Math.max(1, Math.round(Number(e.target.value)) || 1))}
+            />
+          </label>
+          {myLevel !== null && levelsHere && (
+            <label className="check">
+              <input type="checkbox" checked={unknownLevel} onChange={(e) => setUnknownLevel(e.target.checked)} />
+              Incluir las {int(hidden)} recetas sin nivel conocido
+            </label>
+          )}
+        </div>
+      )}
+      {profNumber !== null && myLevel !== null && !levelsHere && (
+        <p className="notice">
+          Todavía no hay datos del nivel que pide cada receta de {profName}, así que no se puede filtrar por tu nivel. Blizzard no publica
+          ese dato; llegará con la clave de ForeverDB.
+        </p>
+      )}
+      {profNumber !== null && myLevel !== null && levelsHere && data.skillSource === 'classic' && (
+        <p className="notice">
+          Los niveles de las recetas son los de Classic y están sin verificar en Forever; solo cubren hasta el nivel 100. Las recetas nuevas
+          de Forever, como la Tienda de campamento, no tienen nivel: márcalas con «Conozco esta receta» o incluye las de nivel desconocido.
+        </p>
+      )}
       {skill && skill.skill !== null && (
         <p className="muted" style={{ margin: 0 }}>Tu nivel de {skill.name.toLowerCase()}: {skill.skill}{skill.max ? ` de ${skill.max}` : ''}.</p>
       )}
@@ -105,6 +150,7 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
               <thead>
                 <tr>
                   <SortHeader label="Receta" column="name" sort={sort} onSort={onSort} />
+                  <SortHeader label="Nivel" column="skill" sort={sort} onSort={onSort} numeric />
                   <SortHeader label="Coste materiales" column="cost" sort={sort} onSort={onSort} numeric />
                   <SortHeader label="Venta" column="sale" sort={sort} onSort={onSort} numeric />
                   <SortHeader label="Beneficio neto" column="profit" sort={sort} onSort={onSort} numeric />
@@ -122,6 +168,7 @@ export function Fabrica({ latest, recipeId }: { latest: Latest; recipeId: number
                         <button type="button" className="th-sort strong" onClick={() => setSelected(r.id)}>{r.name}</button>
                         <div className="small">{r.reagents.map(([item, qty]) => `${qty} ${names(item)}`).join(' · ')}</div>
                       </td>
+                      <td className="num">{r.skill ?? '—'}</td>
                       <td className="num">{r.cost === undefined ? 'sin materiales' : price(Math.round(r.cost))}</td>
                       <td className="num">{r.sale == null ? 'sin anuncios' : price(r.sale)}</td>
                       <td className={`num strong ${r.profit == null ? '' : r.profit >= 0 ? 'pos' : 'neg'}`}>{r.profit == null ? '—' : signedPrice(Math.round(r.profit))}</td>
@@ -172,6 +219,7 @@ function Detail({
         <h2 style={{ fontSize: 18, lineHeight: '24px' }}>{r.name}</h2>
         <span className="muted">
           {profName}{r.cat ? ` · ${r.cat}` : ''}{r.yield !== 1 ? ` · salen ${r.yield} por fabricación` : ''}
+          {r.skill !== null ? ` · nivel ${r.skill}` : ''}
           {r.rel !== undefined ? ` · Fiabilidad ${RELIABILITY[r.rel]!.toLowerCase()}` : ''}
         </span>
       </div>
