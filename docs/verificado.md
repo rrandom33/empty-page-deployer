@@ -52,7 +52,7 @@ Sondeado el 12 de noviembre de 2026 en `static-forever-eu`. La API de Blizzard d
 - `GET /data/wow/recipe/{id}` → `crafted_item`, `reagents[{ reagent, quantity }]` y `crafted_quantity { value }`. **No trae el nivel de habilidad que pide la receta ni cómo se aprende.** `/data/wow/recipe/index` y la búsqueda de recetas devuelven 404.
 - `GET /data/wow/search/item?orderby=id&_pageSize=1000&id=[desde,hasta]` → hasta 1.000 objetos por petición con nombre en todos los idiomas, calidad, clase, subclase, `sell_price` y `purchase_price`. Con esto se descarga el catálogo entero en pocas peticiones, sin el problema de los 404 de `/data/wow/item/{id}`.
 - La Tienda de campaña es el objeto 279978 («Tienda de campamento»).
-- La API no dice qué objetos vende un vendedor: `purchase_price` existe para todos. La lista de materiales de vendedor se mantiene a mano en `config/vendor_items.json`, con IDs de Classic, **por verificar en el juego**.
+- La API no dice qué objetos vende un vendedor: `purchase_price` existe para todos. Los materiales de vendedor salen de `Data/NPCs.lua` del addon de ForeverDB (público, mismo crédito): vendedores con su bando, si se han visto en Forever y lo que venden con precio, unidades por compra y existencias limitadas. Se descartan los de la Horda y los de existencias limitadas, y se prefieren los vistos en Forever. Los vendedores no vistos en Forever son datos de Classic. **Por verificar**: el precio de ForeverDB es el de una compra de `stack` unidades y se divide entre ellas (Vial vacío: 20c por 5 = 4c cada uno); Blizzard da 20c como `purchase_price`. Afecta solo a lo que se vende en lotes, como viales y especias.
 
 - **Nivel de cada receta**: no lo da Blizzard. Sale del fichero público de datos del addon de ForeverDB (`https://foreverdb.net/downloads/addon-manifest.json` → `Data/Recipes.lua`), que no necesita clave. Licencia GPL-3.0 con crédito obligatorio, que el pie del menú muestra («Datos de ForeverDB.net»). Verificado el 12 de noviembre de 2026 con los datos `2026-11-11.5fe262fd`: 2.302 objetos fabricables con nivel, y las 2.311 recetas del catálogo de Blizzard quedan cubiertas. Cada receta trae el nivel de aprendizaje, los niveles amarillo, verde y gris, cómo se aprende y si es nueva en Forever. Cuando el nivel de aprendizaje viene a 0 (desconocido; es el caso de la Tienda de campamento) se usa el nivel en que pasa a amarilla y se muestra como «≤».
 
@@ -60,6 +60,12 @@ Consecuencias para la herramienta:
 
 - Qué recetas conoce el personaje solo puede salir del perfil (`CHARACTER_SLUG`, verificación 6). Mientras falte, las recetas conocidas se marcan a mano en Fábrica y se guardan en el navegador.
 - El pie del menú acredita la API de Blizzard en lugar de ForeverDB, porque no se muestran datos de ForeverDB.
+
+## Otras fuentes revisadas
+
+- **Timesaver.gg** publica un CSV con la mediana de 40 materiales por región y facción. Sale de la misma API de Blizzard y mezcla todas las casas, así que no añade nada a lo que ya se recoge.
+- **Addons de precios** (AzerothCharts, Hammerprice, auxForever…) guardan historial dentro del juego; no publican sus datos.
+- No se ha encontrado ninguna fuente de historial de precios de Forever anterior al 12 de noviembre de 2026 que se pueda descargar.
 
 ## Supuestos que quedan en el código
 

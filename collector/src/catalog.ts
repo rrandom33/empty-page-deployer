@@ -18,7 +18,7 @@ export interface RecipeEntry {
   id: number; name: string; prof: number; cat: string; item: number; yield: number; reagents: [number, number][];
 }
 export interface RecipesFile { version: 1; t: string; professions: { id: number; name: string }[]; recipes: RecipeEntry[] }
-export interface VendorsFile { version: 1; t: string; items: Record<string, number> }
+export interface VendorsFile { version: 1; t: string; items: Record<string, number>; info?: Record<string, VendorInfo> }
 export interface CharacterFile {
   version: 1; t: string;
   professions: { id: number; name: string; skill: number | null; max: number | null }[];
@@ -187,26 +187,60 @@ export function parseForeverDbRecipes(lua: string): Record<string, SkillRow> {
   return byItem;
 }
 
+/** Descarga un fichero de datos del addon de ForeverDB y comprueba su huella. */
+async function foreverDbFile(path: string): Promise<{ text: string; dataVersion: string }> {
+  const get = async (url: string) => {
+    const res = await fetch(`${FOREVERDB}/${url}`, { headers: FOREVERDB_HEADERS });
+    if (!res.ok) throw new Error(`ForeverDB ${url.split('?')[0]}: respuesta ${res.status}.`);
+    return res;
+  };
+  const manifest = (await (await get('downloads/addon-manifest.json')).json()) as unknown;
+  const data = isObj(manifest) && isObj(manifest.data) ? manifest.data : {};
+  const file = (Array.isArray(data.files) ? (data.files as unknown[]) : []).find((f) => isObj(f) && f.path === path);
+  if (!isObj(file) || typeof file.url !== 'string') throw new ShapeError(`ForeverDB: el manifiesto no lista ${path}.`);
+  const bytes = Buffer.from(await (await get(file.url)).arrayBuffer());
+  if (typeof file.sha256 === 'string' && createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
+    throw new Error(`ForeverDB: ${path} no coincide con la huella del manifiesto.`);
+  }
+  return { text: bytes.toString('utf8'), dataVersion: typeof data.version === 'string' ? data.version : '' };
+}
+
 /**
  * Niveles de las recetas, del fichero público de datos del addon de ForeverDB
  * (GPL-3.0 con crédito obligatorio: «Datos de ForeverDB.net»). La API de Blizzard no los da.
  */
 export async function fetchSkills(): Promise<Omit<SkillsFile, 'version' | 't'>> {
-  const get = async (path: string) => {
-    const res = await fetch(`${FOREVERDB}/${path}`, { headers: FOREVERDB_HEADERS });
-    if (!res.ok) throw new Error(`ForeverDB ${path.split('?')[0]}: respuesta ${res.status}.`);
-    return res;
-  };
-  const manifest = (await (await get('downloads/addon-manifest.json')).json()) as unknown;
-  const data = isObj(manifest) && isObj(manifest.data) ? manifest.data : {};
-  const file = (Array.isArray(data.files) ? (data.files as unknown[]) : []).find((f) => isObj(f) && f.path === 'Data/Recipes.lua');
-  if (!isObj(file) || typeof file.url !== 'string') throw new ShapeError('ForeverDB: el manifiesto no lista Data/Recipes.lua.');
-  const bytes = Buffer.from(await (await get(file.url)).arrayBuffer());
-  if (typeof file.sha256 === 'string' && createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
-    throw new Error('ForeverDB: Recipes.lua no coincide con la huella del manifiesto.');
+  const { text, dataVersion } = await foreverDbFile('Data/Recipes.lua');
+  return { source: 'ForeverDB.net', dataVersion, byItem: parseForeverDbRecipes(text) };
+}
+
+export interface VendorInfo { price: number; npc: string; seen: boolean }
+
+/**
+ * Materiales de vendedor accesibles para la Alianza, de Data/NPCs.lua de ForeverDB.
+ * ns.npcs: [npc] = {nombre, título, mapa, x, y, bando (A/H/vacío), visto en Forever};
+ * ns.sold: [objeto] = {npc, precio en cobre, unidades por compra, existencias limitadas, ...}.
+ * Se queda con el precio por unidad más bajo sin existencias limitadas, prefiriendo vendedores vistos en Forever.
+ */
+export function parseForeverDbVendors(lua: string): Record<string, VendorInfo> {
+  const lineOf = (name: string) => lua.split('\n').find((l) => l.startsWith(`ns.${name} = `)) ?? '';
+  const npcs = new Map<string, { name: string; side: string; seen: boolean }>();
+  const npcRe = /\[(\d+)\]=\{"((?:[^"\\]|\\.)*)","(?:[^"\\]|\\.)*",-?\d+,-?[\d.]+,-?[\d.]+,"(\w*)",(\d)\}/g;
+  for (const m of lineOf('npcs').matchAll(npcRe)) npcs.set(m[1]!, { name: m[2]!, side: m[3]!, seen: m[4] === '1' });
+  const out: Record<string, VendorInfo> = {};
+  for (const m of lineOf('sold').matchAll(/\[(\d+)\]=\{([\d,]+)\}/g)) {
+    const v = m[2]!.split(',').map(Number);
+    let best: VendorInfo | null = null;
+    for (let i = 0; i + 3 < v.length; i += 4) {
+      const npc = npcs.get(String(v[i]));
+      const [price, stack, limited] = [v[i + 1]!, v[i + 2]!, v[i + 3]!];
+      if (!npc || npc.side === 'H' || limited || price <= 0) continue;
+      const cand = { price: price / Math.max(1, stack), npc: npc.name, seen: npc.seen };
+      if (!best || (cand.seen && !best.seen) || (cand.seen === best.seen && cand.price < best.price)) best = cand;
+    }
+    if (best) out[m[1]!] = best;
   }
-  const byItem = parseForeverDbRecipes(bytes.toString('utf8'));
-  return { source: 'ForeverDB.net', dataVersion: typeof data.version === 'string' ? data.version : '', byItem };
+  return out;
 }
 
 async function main(): Promise<void> {
@@ -235,13 +269,14 @@ async function main(): Promise<void> {
     return `${count} objetos`;
   });
   await run('catalogo_vendedores', async () => {
-    const list = readJson<{ items: number[] }>(join(ROOT, 'config/vendor_items.json'))!.items;
-    const source = items ?? readJson<ItemsFile>(join(dataDir, 'catalog/items.json'))?.items;
-    if (!source) throw new Error('Sin catálogo de objetos.');
-    const vendors: Record<string, number> = {};
-    for (const id of list) if (source[id] && source[id][5] > 0) vendors[id] = source[id][5];
-    writeJson(join(dataDir, 'catalog/vendors.json'), { version: 1, t, items: vendors } satisfies VendorsFile);
-    return `${Object.keys(vendors).length} materiales de vendedor`;
+    const { text, dataVersion } = await foreverDbFile('Data/NPCs.lua');
+    const info = parseForeverDbVendors(text);
+    const count = Object.keys(info).length;
+    if (count < 100) throw new ShapeError(`ForeverDB: solo ${count} objetos de vendedor; no se guarda.`);
+    const items: Record<string, number> = {};
+    for (const [id, v] of Object.entries(info)) items[id] = v.price;
+    writeJson(join(dataDir, 'catalog/vendors.json'), { version: 1, t, items, info } satisfies VendorsFile);
+    return `${count} objetos de vendedor para la Alianza (datos ${dataVersion})`;
   });
   await run('catalogo_recetas', async () => {
     const { professions, recipes } = await fetchRecipes(client, config.namespaces.static);
