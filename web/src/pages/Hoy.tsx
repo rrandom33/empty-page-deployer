@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { allocate } from '../../../engine/analysis.ts';
-import { useKnownRecipes, useStored, useToday, useWatchlist } from '../data.ts';
+import { useKnownRecipes, useSkillLevels, useStored, useToday, useWatchlist } from '../data.ts';
 import type { Latest, TodayAction } from '../data.ts';
 import { MissingData, SignalTag, Sparkline, Stat } from '../components/common.tsx';
 import { duration, historyLabel, int, itemName, percent, price, RELIABILITY, signedPrice } from '../format.ts';
@@ -15,18 +15,22 @@ export function Hoy({ latest, now }: { latest: Latest; now: number }) {
   const { data: today } = useToday();
   const manual = useKnownRecipes();
   const watch = useWatchlist();
+  const skills = useSkillLevels();
   const [gold, setGold] = useStored('oro', 85);
   const [allRecipes, setAllRecipes] = useStored('hoy.todasLasRecetas', false);
 
   const name = (id: number) => itemName(id, today?.names[id] ?? latest.byId.get(id)?.name);
-  const hasKnownInfo = !!today && (today.actions.some((a) => a.type !== 'ganga' && a.known !== null) || manual.list.length > 0);
+  const hasKnownInfo = !!today && (today.actions.some((a) => a.type !== 'ganga' && a.known !== null) || manual.list.length > 0 || Object.keys(skills.levels).length > 0);
 
   const plan = useMemo(() => {
     if (!today) return [];
     const eligible = today.actions.filter((a) => {
       if ((a.sold ?? 0) < today.minSold) return false;
       if (a.type === 'ganga' || allRecipes || !hasKnownInfo) return true;
-      return a.known ?? (a.recipe !== undefined && manual.has(a.recipe));
+      if (a.known ?? (a.recipe !== undefined && manual.has(a.recipe))) return true;
+      // Receta que tu nivel de la profesión permite hacer.
+      const level = skills.get(a.prof);
+      return level !== null && a.skill != null && a.skill <= level;
     });
     const alloc = allocate(
       eligible.map((a) => ({ unitInvest: a.unitInvest, unitProfit: a.unitProfit, maxUnits: a.maxUnits, soldPerDay: a.sold ?? 0 })),
@@ -35,7 +39,7 @@ export function Hoy({ latest, now }: { latest: Latest; now: number }) {
     );
     return alloc.map((p) => ({ ...p, action: eligible[p.index]! })).sort((a, b) => b.goldPerDay - a.goldPerDay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today, gold, allRecipes, hasKnownInfo, manual.list]);
+  }, [today, gold, allRecipes, hasKnownInfo, manual.list, skills.levels]);
 
   const invest = plan.reduce((s, p) => s + p.invest, 0);
   const profit = plan.reduce((s, p) => s + p.profit, 0);

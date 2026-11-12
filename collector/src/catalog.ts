@@ -2,6 +2,7 @@
  * Catálogo diario: objetos, recetas, vendedores y profesiones del personaje.
  * Todo sale de la API de Blizzard y se guarda en catalog/ de la rama data.
  */
+import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { BlizzardClient, loadHousesConfig, ShapeError } from './blizzard.ts';
 import { readJson, writeJson } from './store.ts';
@@ -147,6 +148,67 @@ export async function fetchCharacter(client: BlizzardClient, ns: string, slug: s
   return { professions, known: [...known].sort((a, b) => a - b) };
 }
 
+/** Nivel de habilidad de una receta, por objeto fabricado. Datos de ForeverDB.net. */
+export interface SkillRow {
+  /** Nivel con el que se aprende; null si ForeverDB no lo conoce. */
+  orange: number | null;
+  yellow: number;
+  green: number;
+  grey: number;
+  /** 'a' automática, 't' instructor, 'i<objeto>' patrón. */
+  learn: string;
+  isNew: boolean;
+  /** El nivel de aprendizaje es dato de instructor de Classic. */
+  classic: boolean;
+}
+export interface SkillsFile { version: 1; t: string; source: string; dataVersion: string; byItem: Record<string, SkillRow> }
+
+const FOREVERDB = 'https://foreverdb.net';
+const FOREVERDB_HEADERS = { 'User-Agent': 'wow-subastas (herramienta personal)' };
+
+/**
+ * Lee las recetas del fichero de datos del addon de ForeverDB (Data/Recipes.lua). Cada receta es
+ * {hechizo, nombre, nivel, amarillo, verde, gris, objeto, cantidad, "materiales", "origen", campamento, nueva, classic, ...}.
+ */
+export function parseForeverDbRecipes(lua: string): Record<string, SkillRow> {
+  const entry = /\{(\d+),"(?:[^"\\]|\\.)*",(\d+),(\d+),(\d+),(\d+),(\d+),[\d.]+,"[^"]*","([^"]*)",\d+,(\d+),(\d+)(?:,\d+,\d+)?\}/g;
+  const byItem: Record<string, SkillRow> = {};
+  const need = (r: SkillRow) => r.orange ?? r.yellow;
+  for (const m of lua.matchAll(entry)) {
+    const row: SkillRow = {
+      orange: Number(m[2]) > 0 ? Number(m[2]) : null,
+      yellow: Number(m[3]), green: Number(m[4]), grey: Number(m[5]),
+      learn: m[7]!, isNew: m[8] === '1', classic: m[9] === '1',
+    };
+    const item = m[6]!;
+    // Si varias recetas dan el mismo objeto, vale la que se aprende antes.
+    if (item !== '0' && (!byItem[item] || need(row) < need(byItem[item]))) byItem[item] = row;
+  }
+  return byItem;
+}
+
+/**
+ * Niveles de las recetas, del fichero público de datos del addon de ForeverDB
+ * (GPL-3.0 con crédito obligatorio: «Datos de ForeverDB.net»). La API de Blizzard no los da.
+ */
+export async function fetchSkills(): Promise<Omit<SkillsFile, 'version' | 't'>> {
+  const get = async (path: string) => {
+    const res = await fetch(`${FOREVERDB}/${path}`, { headers: FOREVERDB_HEADERS });
+    if (!res.ok) throw new Error(`ForeverDB ${path.split('?')[0]}: respuesta ${res.status}.`);
+    return res;
+  };
+  const manifest = (await (await get('downloads/addon-manifest.json')).json()) as unknown;
+  const data = isObj(manifest) && isObj(manifest.data) ? manifest.data : {};
+  const file = (Array.isArray(data.files) ? (data.files as unknown[]) : []).find((f) => isObj(f) && f.path === 'Data/Recipes.lua');
+  if (!isObj(file) || typeof file.url !== 'string') throw new ShapeError('ForeverDB: el manifiesto no lista Data/Recipes.lua.');
+  const bytes = Buffer.from(await (await get(file.url)).arrayBuffer());
+  if (typeof file.sha256 === 'string' && createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
+    throw new Error('ForeverDB: Recipes.lua no coincide con la huella del manifiesto.');
+  }
+  const byItem = parseForeverDbRecipes(bytes.toString('utf8'));
+  return { source: 'ForeverDB.net', dataVersion: typeof data.version === 'string' ? data.version : '', byItem };
+}
+
 async function main(): Promise<void> {
   const dataDir = resolve(process.env.DATA_DIR ?? 'data-branch');
   const config = loadHousesConfig(join(ROOT, 'config/houses.json'));
@@ -186,6 +248,13 @@ async function main(): Promise<void> {
     if (recipes.length === 0) throw new ShapeError('Ninguna receta: no se guarda.');
     writeJson(join(dataDir, 'catalog/recipes.json'), { version: 1, t, professions, recipes } satisfies RecipesFile);
     return `${recipes.length} recetas de ${professions.length} profesiones`;
+  });
+  await run('foreverdb_niveles', async () => {
+    const skills = await fetchSkills();
+    const count = Object.keys(skills.byItem).length;
+    if (count < 100) throw new ShapeError(`ForeverDB: solo ${count} recetas reconocidas; no se guarda.`);
+    writeJson(join(dataDir, 'catalog/skills.json'), { version: 1, t, ...skills } satisfies SkillsFile);
+    return `${count} recetas con nivel (datos ${skills.dataVersion})`;
   });
   const slug = process.env.CHARACTER_SLUG;
   if (slug) {

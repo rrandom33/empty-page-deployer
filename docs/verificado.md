@@ -54,6 +54,8 @@ Sondeado el 12 de noviembre de 2026 en `static-forever-eu`. La API de Blizzard d
 - La Tienda de campaña es el objeto 279978 («Tienda de campamento»).
 - La API no dice qué objetos vende un vendedor: `purchase_price` existe para todos. La lista de materiales de vendedor se mantiene a mano en `config/vendor_items.json`, con IDs de Classic, **por verificar en el juego**.
 
+- **Nivel de cada receta**: no lo da Blizzard. Sale del fichero público de datos del addon de ForeverDB (`https://foreverdb.net/downloads/addon-manifest.json` → `Data/Recipes.lua`), que no necesita clave. Licencia GPL-3.0 con crédito obligatorio, que el pie del menú muestra («Datos de ForeverDB.net»). Verificado el 12 de noviembre de 2026 con los datos `2026-11-11.5fe262fd`: 2.302 objetos fabricables con nivel, y las 2.311 recetas del catálogo de Blizzard quedan cubiertas. Cada receta trae el nivel de aprendizaje, los niveles amarillo, verde y gris, cómo se aprende y si es nueva en Forever. Cuando el nivel de aprendizaje viene a 0 (desconocido; es el caso de la Tienda de campamento) se usa el nivel en que pasa a amarilla y se muestra como «≤».
+
 Consecuencias para la herramienta:
 
 - Qué recetas conoce el personaje solo puede salir del perfil (`CHARACTER_SLUG`, verificación 6). Mientras falte, las recetas conocidas se marcan a mano en Fábrica y se guardan en el navegador.

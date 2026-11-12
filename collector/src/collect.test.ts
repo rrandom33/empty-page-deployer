@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collect } from './main.ts';
 import { parseListings, ShapeError } from './blizzard.ts';
+import { parseForeverDbRecipes } from './catalog.ts';
 import { readJson } from './store.ts';
 import type { DailyFile, HourlyFile, Meta } from './store.ts';
 
@@ -104,4 +105,18 @@ test('una respuesta con forma inesperada falla sin guardar nada', async () => {
   auctions110 = [{ id: 1, item: { id: 5 }, buyout: 'caro', quantity: 1, time_left: 'LONG' }];
   await assert.rejects(collect(dir), ShapeError);
   assert.equal(readJson(join(dir, 'meta.json')), null);
+});
+
+test('lee los niveles de receta del fichero de ForeverDB', () => {
+  const lua = 'ns.recipes = {Leatherworking={{2881,"Light Leather",1,20,30,40,2318,1,"2934:3","a",0,0,0},' +
+    '{1229432,"Camp Tent",0,20,22,25,279978,1,"2318:5","t",1,1,0},' +
+    '{2163,"White \\"Leather\\" Jerkin",40,70,85,100,2311,1,"2318:8,2320:2,2324:1","i2407",0,0,0,1,3},' +
+    '{9,"Otra para el mismo objeto",90,95,97,99,2311,1,"2318:1","t",0,0,1}}}';
+  const rows = parseForeverDbRecipes(lua);
+  assert.deepEqual(Object.keys(rows).sort(), ['2311', '2318', '279978']);
+  assert.deepEqual(rows['2318'], { orange: 1, yellow: 20, green: 30, grey: 40, learn: 'a', isNew: false, classic: false });
+  assert.equal(rows['279978']!.orange, null); // nivel de aprendizaje desconocido
+  assert.equal(rows['279978']!.isNew, true);
+  assert.equal(rows['2311']!.orange, 40); // gana la receta que se aprende antes
+  assert.equal(rows['2311']!.learn, 'i2407');
 });
